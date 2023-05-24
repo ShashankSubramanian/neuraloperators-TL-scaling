@@ -2,6 +2,12 @@
 This repository contains PyTorch code for training the Fourier Neural Operator on different PDE systems to characterize its scaling and transfer learning behavior on different downstream tasks. 
 ![overview](assets/overview.png)
 
+## Environment
+The necessary packages for this code can be installed via
+```
+pip install -r requirements.txt
+```
+
 ## Data Generation
 We consider three PDE systems: Poisson's, Advection-Diffusion, Helmholtz. For the data generation, we sample source functions and PDE coefficients to create train-val-test data splits. The layout for data generation is:
 
