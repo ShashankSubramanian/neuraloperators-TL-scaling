@@ -1,0 +1,81 @@
+default: &DEFAULT
+  num_data_workers: 1
+  # model
+  model: 'fno'
+  depth: 5
+  in_dim: 2
+  out_dim: 1
+  dropout: 0
+  # data/domain
+  Lx: !!float 1.0
+  Ly: !!float 1.0
+  nx: 256
+  ny: 256
+  # optimization
+  loss_style: 'mean'
+  loss_func: 'mse'
+  optimizer: 'adam'
+  scheduler: 'none'
+  lr: !!float 1.0
+  max_epochs: 500
+  max_cosine_lr_epochs: 500
+  batch_size: 25
+  # misc
+  log_to_screen: !!bool True
+  save_checkpoint: !!bool False
+  seed: 0
+  plot_figs: !!bool False
+  pack_data: !!bool False
+  # Weights & Biases
+  entity: 'pinns'
+  project: 'neuraloperators'
+  log_to_wandb: !!bool False
+  distill: !!bool False
+  subsample: 1
+
+helmholtz: &helmholtz
+  <<: *DEFAULT
+  batch_size: 128
+  valid_batch_size: 128
+  nx: 128
+  ny: 128
+  log_to_wandb: !!bool True
+  save_checkpoint: !!bool True
+  max_epochs: 500
+  scheduler: 'cosine'
+  plot_figs: !!bool True
+  loss_style: 'sum'
+
+  model: 'fno'
+  layers: [64, 64, 64, 64, 64]
+  modes1: [65, 65, 65, 65]
+  modes2: [65, 65, 65, 65]
+  fc_dim: 128
+
+  in_dim: 2
+  out_dim: 1
+  mode_cut: 32
+  embed_cut: 64
+  fc_cut: 2
+
+  optimizer: 'adam'
+
+  lr: 1E-3
+  pack_data: !!bool False
+
+helm-scale-o1_10: &helm_o1_10
+  <<: *helmholtz
+  train_path:   '/path/to/data/train_o1_10_32k.h5'
+  val_path:     '/path/to/data/val_o1_10_4k.h5'
+  test_path:    '/path/to/data/test_o1_10_4k.h5'
+  scales_path:  '/path/to/data/train_o1_10_scales.npy'
+  batch_size: 128
+  valid_batch_size: 128
+  log_to_wandb: !!bool False
+  in_dim: 3
+  out_dim: 1
+  mode_cut: 32
+  embed_cut: 64
+  fc_cut: 2
+  lr: 1E-3
+  subsample: 1
