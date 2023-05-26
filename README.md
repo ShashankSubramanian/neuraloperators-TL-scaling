@@ -23,7 +23,23 @@ stores ``x_train`` of shape ``(n_train, 2, 128, 128)`` for  source and solution 
 - Once the data is generated, the scales for input normalization can be generated using ``utils/get_scale.ipynb``. The data paths and scales paths are passed to the configuration files for training.
 
 ## Training and Inference
-- Configuration files (in YAML format) are in `configs/` for different PDE systems. For example, config for Poisson's is in `configs/operator_poisson.yaml`.  The main configs for the three systems are ``poisson-scale-k1_5``, ``ad-scale_adr0p2_1`` and ``helm-scale-o1_10``. The data paths and scales paths need to be set here.
+- Configuration files (in YAML format) are in `configs/` for different PDE systems. For example, config for Poisson's is in `configs/operator_poisson.yaml`.  The main configs for the three systems are ``poisson-scale-k1_5``, ``ad-scale_adr0p2_1`` and ``helm-scale-o1_10``. The data paths and scales paths need to be set here. For example, the config at [configs/operator_poisson.yaml](config/operator_poisson.yaml) has the data setup and minimal hyperparameters as follows:
+ ```
+poisson-scale-k1_5: &poisson_scale_k1_5  # sampled eigenvalues are in (1,5) for diffusion
+	  <<: *poisson
+	  ... # can change other default configs from poisson if needed #
+	  ...
+	  train_path:  # path to train data
+	  val_path:    # path to validation data
+	  test_path:   # path to test data
+	  scales_path: # path to train data scales for input normalization 
+	  batch_size:       # batch size for training 
+	  valid_batch_size: # batch size for validation
+	  log_to_wandb:     # switch on for logging to weights&biases
+	  mode_cut:         # number of fourier modes to use
+	  embed_cut:        # embedding dimension of FNO
+	  fc_cut:           # multiplier for last fc layer
+``` 
 - Data, trainer, and other miscellaneous utilities are in `utils/`. We use standard PyTorch dataloaders and models wrapped with DDP for distributed data-parallel training with checkpointing.
 - The FNO model is the standard model and is in `models/`. The hyperparameters used are in the config files for the respective PDE systems.
 - Environment variables for DDP (local rank, master port etc) are set in `export_DDP_vars.sh` to be sourced before running any distributed training. See the [PyTorch DDP tutorial](https://pytorch.org/tutorials/intermediate/ddp_tutorial.html) for more details on using DDP. There are other ways to implement this, but our run script is specifically for slurm systems.
