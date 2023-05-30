@@ -18,8 +18,8 @@ logging_utils.config_logger()
 from utils.YParams import YParams
 #from utils.data_utils_rand import get_data_loader
 from utils.data_utils import get_data_loader
-from utils.optimizer_utils import EarlyStopping, set_scheduler, set_optimizer
-from utils.loss_utils import LossMSE, LossPDE
+from utils.optimizer_utils import set_scheduler, set_optimizer
+from utils.loss_utils import LossMSE
 from utils.misc_utils import compute_grad_norm, vis_fields_many, l2_err, show
 from utils.domains import DomainXY
 from collections import OrderedDict
@@ -129,11 +129,7 @@ class Inferencer():
                                                 output_device=[self.local_rank])
 
         if self.params.loss_func == "mse":
-            self.loss_func = LossMSE(self.params, self.model, self.domain)
-        elif self.params.loss_func == "pde":
-            self.loss_func = LossPDE(self.params, self.model, self.domain, use_data_loss=False, variable_tensors=(self.params.in_dim>=4))
-        elif self.params.loss_func == "pdedata":
-            self.loss_func = LossPDE(self.params, self.model, self.domain, use_data_loss=True, variable_tensors=(self.params.in_dim>=4))
+            self.loss_func = LossMSE(self.params, self.model)
         else:
             assert(False), "Error,  loss func invalid."
 
@@ -241,7 +237,7 @@ class Inferencer():
                 loss_data = self.loss_func.data(inputs, u, targets)
                 loss_pde = self.loss_func.pde(inputs, u, targets)
                 loss_bc = self.loss_func.bc(inputs, u, targets)
-                loss = loss_data + loss_bc + self.params.reg * loss_pde
+                loss = loss_data + loss_bc + loss_pde
 
 
                 if test_individual_errors:
