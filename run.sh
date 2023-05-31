@@ -22,3 +22,9 @@ cmd="python train.py --yaml_config=$config_file --config=$config --run_num=$run_
 
 # source DDP vars first for data-parallel training (if not srun, just source and then run cmd; see pytorch docs for DDP)
 srun -l -n $ngpu --cpus-per-task=10 --gpus-per-node $ngpu bash -c "source export_DDP_vars.sh && $cmd"
+
+# for inference run the following commands to use eval.py (single gpu is sufficient, no logging by default)
+# pass the model weights to use
+#weights_for_inference=$scratch/expts/$config/$run_num/checkpoints/ckpt_best.tar
+#cmd_inf="shifter --image=$simg python eval.py --yaml_config=$config_file --config=$config --run_num=$run_num --root_dir=$scratch --weights=$weights_for_inference"
+#bash -c "$cmd_inf"

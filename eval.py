@@ -22,16 +22,19 @@ if __name__ == '__main__':
     parser.add_argument("--root_dir", default='./', type=str, help='root dir to store results')
     parser.add_argument("--run_num", default='0', type=str, help='sub run config')
     parser.add_argument("--sweep", default='none', type=str)
+    parser.add_argument("--weights", default='./ckpt.tar', type=str)
     args = parser.parse_args()
 
 
     params = YParams(os.path.abspath(args.yaml_config), args.config)
     logging.info("Starting config {}".format(args.config))
 
+    params['weights'] = args.weights
+
     if hasattr(params, 'weights'):
         logging.info("with weights {}".format(params.weights))
     else:
-        logging.info("no weight vector")
+        assert(False), "no model weights provided"
 
     inferencer = Inferencer(params, args)
     if inferencer.world_rank == 0:

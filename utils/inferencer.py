@@ -16,7 +16,6 @@ import logging
 from utils import logging_utils
 logging_utils.config_logger()
 from utils.YParams import YParams
-#from utils.data_utils_rand import get_data_loader
 from utils.data_utils import get_data_loader
 from utils.optimizer_utils import set_scheduler, set_optimizer
 from utils.loss_utils import LossMSE
@@ -25,7 +24,6 @@ from utils.domains import DomainXY
 from collections import OrderedDict
 
 # models
-import models.ffn
 import models.fno
 
 def print_mem():
@@ -71,7 +69,7 @@ class Inferencer():
             torch.backends.cudnn.benchmark = True
         
         self.log_to_screen = params.log_to_screen and self.world_rank==0
-        self.log_to_wandb = params.log_to_wandb and self.world_rank==0
+        self.log_to_wandb = False # turn off for inference; params.log_to_wandb and self.world_rank==0
         params['name'] = args.config + '_' + args.run_num
         params['group'] = 'op_' + args.config
         if torch.cuda.is_available():
@@ -116,9 +114,7 @@ class Inferencer():
         # domain grid
         self.domain = DomainXY(self.params)
         
-        if self.params.model == 'ffn':
-            self.model = models.ffn.ffn_pinns(self.params).to(self.device)
-        elif self.params.model == 'fno':
+        if self.params.model == 'fno':
             self.model = models.fno.fno(self.params).to(self.device)
         else:
             assert(False), "Error, model arch invalid."
@@ -160,53 +156,7 @@ class Inferencer():
         n = n**0.5
         return n
 
-    def append_individual_errors(self, batch_idx, f, u, gt, inp):
-        eps = 0
-        x = torch.sum((u-gt)**2, dim=(-1,-2))/(torch.sum(gt**2, dim=(-1,-2)) + eps)
-        x = torch.sqrt(x)
-#        x = torch.mean(torch.abs((u-gt)), dim=(-1,-2))
-
-        x_g = self.domain.x_g
-        y_g = self.domain.y_g
-        nx = self.params.nx
-        ny = self.params.ny
-        lx = self.params.Lx
-        ly = self.params.Ly
-         
-
-        plot_idxes = []
-        for sidx in range(x.shape[0]): # u = (b, 1, nx, ny) 
-            err = x[sidx,0].cpu().numpy()
-
-            ten = inp[sidx,1:,0,0].cpu().numpy()
-            f.write("{},{},".format(sidx, err))
-            for t in ten:
-                f.write("{},".format(t))
-            f.write("\n")
-            gidx = batch_idx*self.params.valid_batch_size + sidx
-
-            if gidx in plot_idxes:
-                fig, ax = plt.subplots(1, 4, figsize=(25,5))
-                pred = u[sidx,0].cpu().numpy()
-                tar = gt[sidx,0].cpu().numpy()
-                l1_err = np.abs(pred-tar)
-                rel_l2_err = np.sqrt(((pred-tar)**2)/(tar**2+eps))
-                show(pred, ax[0], fig)
-                show(tar, ax[1], fig)
-                show(l1_err, ax[2], fig)
-                show(rel_l2_err, ax[3], fig)
-                ax[0].contour(y_g*ny/ly, x_g*nx/lx, pred, 15)
-                ax[1].contour(y_g*ny/ly, x_g*nx/lx, tar, 15)
-                ax[2].contour(y_g*ny/ly, x_g*nx/lx, l1_err, 15)
-                ax[3].contour(y_g*ny/ly, x_g*nx/lx, rel_l2_err, 15)
-                fig.tight_layout()
-                plt.savefig("./pdfs/helmholtz_idx{}_err{}_eps{}.jpg".format(gidx,err,eps))
-
-        return f
-
     def test(self):
-        test_individual_errors = False
-        save_preds = False
         self.model.eval() 
         #self.model.train() # need gradients
         test_start = time.time()
@@ -223,12 +173,6 @@ class Inferencer():
 
         bs = self.params.local_valid_batch_size
 
-        if test_individual_errors:
-            err_file = open("./test_individual_errors.txt", "w")
-
-        if save_preds:
-            save_fields = np.zeros((self.params.local_valid_batch_size * len(self.test_data_loader), 1, self.test_dataset.img_shape_x, self.test_dataset.img_shape_y))
-
         with torch.no_grad():
             for i, (inputs, targets) in enumerate(self.test_data_loader):
                 if not self.params.pack_data:
@@ -239,10 +183,6 @@ class Inferencer():
                 loss_bc = self.loss_func.bc(inputs, u, targets)
                 loss = loss_data + loss_bc + loss_pde
 
-
-                if test_individual_errors:
-                    err_file = self.append_individual_errors(i, err_file, u.detach(), targets.detach(), inputs.detach())
-
                 self.logs['test_err'] += l2_err(u.detach(), targets.detach()) # computes rel l2 err of each image and averages across batches
                 self.logs['test_loss'] += loss.detach()
                 if i in idx: 
@@ -251,8 +191,6 @@ class Inferencer():
                     pred = u[img_idx[ii],0].detach().cpu().numpy()
                     fields.extend([source, soln, pred])
                     ii += 1
-                if save_preds:
-                    save_fields[i*bs:(i+1)*bs,0] = u[:,0].detach().cpu().numpy()
 
         self.logs['test_err'] /= len(self.test_data_loader)
         self.logs['test_loss'] /= len(self.test_data_loader)
@@ -270,11 +208,6 @@ class Inferencer():
 
         #self.save_logs(tag="_ckpt")
         self.save_logs(tag="_best")
-
-        if test_individual_errors:
-            err_file.close() 
-        if save_preds:
-            np.save("./{}_preds.npy".format(self.config), save_fields)
 
         test_time = time.time() - test_start
 
